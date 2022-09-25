@@ -16,7 +16,7 @@
 // https://developer.tibber.com/settings/accesstoken
 // OBS! Din token er privat, ikke del den med noen!
 
-const TIBBERTOKEN = "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE";
+const TIBBERTOKEN = "YOUR-TOKEN-HERE";
 
 // I de fleste tilfeller skal HOME_NR være 0, men om man har flere abonnement (hus+hytte f.eks)
 // så kan det være at man må endre den til 1 (eller 2).
@@ -79,6 +79,18 @@ let body = {
                 time \
               } \
             } \
+          } \
+        } \
+        dayProduction: production(resolution: HOURLY, last: " + new Date().getHours() + ") { \
+          pageInfo { \
+            totalProduction \
+            totalProfit \
+          } \
+        } \
+        monthProduction: production(resolution: DAILY, last: " + (new Date().getDate()-1) + ") { \
+          pageInfo { \
+            totalProduction \
+            totalProfit \
           } \
         } \
         dayConsumption: consumption (resolution: HOURLY, last: " + new Date().getHours() + ") { \
@@ -192,7 +204,7 @@ url += encodeURI("{ \
       ], \
       datasets:[ \
          { \
-            label:'Øre pr kWh', \
+            label:'Öre pr kWh', \
             steppedLine:true, \
             data:[ \
                " + prices + " \
@@ -208,7 +220,7 @@ url += encodeURI("{ \
             ] \
          }, \
          { \
-            label:'Snitt (" + avgPrice + " øre)', \
+            label:'Snitt (" + avgPrice + " öre)', \
             data:[ \
                " + avgPrices + " \
             ], \
@@ -258,6 +270,14 @@ let totForbrukD = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["dayConsum
 let totCostM = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["monthConsumption"]["pageInfo"]["totalCost"]) + totCostD
 let totForbrukM = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["monthConsumption"]["pageInfo"]["totalConsumption"]) + totForbrukD
 
+// Hent ut totalt forbruk/kostnad hittil i dag
+let totProfD = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["dayProduction"]["pageInfo"]["totalProfit"])
+let totProdD = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["dayProduction"]["pageInfo"]["totalProduction"])
+// Hent ut totalt forbruk/kostnad hittil denne mnd
+let totProfM = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["monthProduction"]["pageInfo"]["totalProfit"]) + totProfD
+let totProdM = Math.round(json["data"]["viewer"]["homes"][HOME_NR]["monthProduction"]["pageInfo"]["totalProduction"]) + totProdD
+
+
 // Legg til nettleie i dagssummen?
 if (NETTLEIE) {
 	totCostD += NETT_FAST/new Date(d.getYear(), d.getMonth()+1, 0).getDate();
@@ -305,7 +325,7 @@ async function createWidget() {
   if (NETTLEIE) {
     let txtStack = lw.addStack();
     txtStack.addSpacer(100);
-    let txtNett = txtStack.addText("Alle beløp inkl nettleie");
+    let txtNett = txtStack.addText("Alla belop inkl avgifter");
     txtNett.centerAlignText();
     txtNett.font = Font.lightSystemFont(10);
   }
@@ -330,7 +350,7 @@ async function createWidget() {
   else if (priceOre > avgPrice)
     price.textColor = new Color(TEXTFARGE_HOY)
 
-  const priceTxt = stackV.addText("øre/kWh");
+  const priceTxt = stackV.addText("öre/kWh");
   priceTxt.centerAlignText();
   priceTxt.font = Font.lightSystemFont(10);
   priceTxt.textColor = new Color(TEKSTFARGE);
@@ -348,18 +368,18 @@ async function createWidget() {
   let stackM = stack2.addStack();
   stackM.layoutVertically()
 
-  // Legg til forbruk hittil i dag i m.kolonne
+  // Consumed and produced today
   let forbruk = stackM.addText(totCostD + " kr");
   forbruk.rightAlignText();
   forbruk.font = Font.lightSystemFont(16);
-  forbruk.textColor = new Color(TEKSTFARGE);
+  forbruk.textColor = new Color(TEXTFARGE_HOY);
 
-  let forbruk2 = stackM.addText(totForbrukD + " kWh");
+  let forbruk2 = stackM.addText(totProfD + " kr");
   forbruk2.rightAlignText();
   forbruk2.font = Font.lightSystemFont(14);
-  forbruk2.textColor = new Color(TEKSTFARGE);
+  forbruk2.textColor = new Color(TEXTFARGE_LAV);
 
-  let forbrukTxt = stackM.addText("Hittil i dag");
+  let forbrukTxt = stackM.addText("Hittills i dag");
   forbrukTxt.rightAlignText();
   forbrukTxt.font = Font.lightSystemFont(10);
   forbrukTxt.textColor = new Color(TEKSTFARGE);
@@ -375,14 +395,14 @@ async function createWidget() {
   forbruk = stackH.addText(totCostM + " kr");
   forbruk.rightAlignText();
   forbruk.font = Font.lightSystemFont(16);
-  forbruk.textColor = new Color(TEKSTFARGE);
+  forbruk.textColor = new Color(TEXTFARGE_HOY);
 
-  forbruk2 = stackH.addText(totForbrukM + " kWh");
+  forbruk2 = stackH.addText(totProfM + " kr");
   forbruk2.rightAlignText();
   forbruk2.font = Font.lightSystemFont(14);
-  forbruk2.textColor = new Color(TEKSTFARGE);
+  forbruk2.textColor = new Color(TEXTFARGE_LAV);
 
-  forbrukTxt = stackH.addText("Hittil denne mnd");
+  forbrukTxt = stackH.addText("Hittills denna mnd");
   forbrukTxt.rightAlignText();
   forbrukTxt.font = Font.lightSystemFont(10);
   forbrukTxt.textColor = new Color(TEKSTFARGE);
@@ -394,9 +414,9 @@ async function createWidget() {
 
   let HomeNickname = json["data"]["viewer"]["homes"][HOME_NR]["appNickname"];
   if (HomeNickname != null)
-    graphTxt = lw.addText("Timepriser" + " (" + HomeNickname + ")" );
+    graphTxt = lw.addText("Timpriser" + " (" + HomeNickname + ")" );
   else
-    graphTxt = lw.addText("Timepriser");
+    graphTxt = lw.addText("Timpriser");
   graphTxt.centerAlignText();
   graphTxt.font = Font.lightSystemFont(16);
   graphTxt.textColor = new Color(TEKSTFARGE);
@@ -423,7 +443,7 @@ async function createWidget() {
   let min = d.getMinutes();
   if (min < 10) min = "0" + min;
 
-  let time = lw.addText("Oppdatert: " + hour + ":" + min);
+  let time = lw.addText("Uppdaterat: " + hour + ":" + min);
   time.centerAlignText();
   time.font = Font.lightSystemFont(8);
   time.textColor = new Color(TEKSTFARGE);
